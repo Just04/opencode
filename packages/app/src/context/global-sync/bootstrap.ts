@@ -95,10 +95,16 @@ export const loadProjectsQuery = (sdk: OpencodeClient) =>
     queryFn: () =>
       retry(() =>
         sdk.project.list().then((x) => {
-          return (x.data ?? [])
+          const list = (x.data ?? [])
             .filter((p) => !!p?.id)
             .filter((p) => !!p.worktree && !p.worktree.includes("opencode-test"))
-            .slice()
+          const seen = new Set<string>()
+          return list
+            .filter((p) => {
+              if (seen.has(p.worktree)) return false
+              seen.add(p.worktree)
+              return true
+            })
             .sort((a, b) => cmp(a.id, b.id))
         }),
       ),

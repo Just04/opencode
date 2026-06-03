@@ -3,6 +3,7 @@ import { type Accessor, batch, createEffect, createMemo, onCleanup } from "solid
 import { createStore } from "solid-js/store"
 import { Persist, persisted } from "@/utils/persist"
 import { useCheckServerHealth } from "@/utils/server-health"
+import { pathKey } from "@/utils/path-key"
 
 type StoredProject = { worktree: string; expanded: boolean }
 type StoredServer = string | ServerConnection.HttpBase | ServerConnection.Http
@@ -224,7 +225,15 @@ export const { use: useServer, provider: ServerProvider } = createSimpleContext(
     })
 
     const origin = createMemo(() => projectsKey(state.active))
-    const projectsList = createMemo(() => store.projects[origin()] ?? [])
+    const projectsList = createMemo(() => {
+      const list = store.projects[origin()] ?? []
+      const seen = new Set<string>()
+      return list.filter((item) => {
+        if (seen.has(item.worktree)) return false
+        seen.add(item.worktree)
+        return true
+      })
+    })
     const current: Accessor<ServerConnection.Any | undefined> = createMemo(
       () => allServers().find((s) => ServerConnection.key(s) === state.active) ?? allServers()[0],
     )
@@ -258,7 +267,7 @@ export const { use: useServer, provider: ServerProvider } = createSimpleContext(
           const key = origin()
           if (!key) return
           const current = store.projects[key] ?? []
-          if (current.find((x) => x.worktree === directory)) return
+          if (current.find((x) => pathKey(x.worktree) === pathKey(directory))) return
           setStore("projects", key, [{ worktree: directory, expanded: true }, ...current])
         },
         close(directory: string) {

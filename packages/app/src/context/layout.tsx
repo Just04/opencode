@@ -12,6 +12,7 @@ import { decode64 } from "@/utils/base64"
 import { same } from "@/utils/same"
 import { createScrollPersistence, type SessionScroll } from "./layout-scroll"
 import { createPathHelpers } from "./file/path"
+import { pathKey } from "@/utils/path-key"
 
 const AVATAR_COLOR_KEYS = ["pink", "mint", "orange", "purple", "cyan", "lime"] as const
 const DEFAULT_SIDEBAR_WIDTH = 344
@@ -559,7 +560,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         list,
         open(directory: string) {
           const root = rootFor(directory)
-          if (server.projects.list().find((x) => x.worktree === root)) return
+          if (server.projects.list().find((x) => pathKey(x.worktree) === pathKey(root))) return
           void globalSync.project.loadSessions(root)
           server.projects.open(root)
         },

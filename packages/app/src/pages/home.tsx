@@ -24,8 +24,13 @@ export default function Home() {
   const language = useLanguage()
   const homedir = createMemo(() => sync.data.path.home)
   const recent = createMemo(() => {
+    const seen = new Set<string>()
     return sync.data.project
-      .slice()
+      .filter((p) => {
+        if (seen.has(p.worktree)) return false
+        seen.add(p.worktree)
+        return true
+      })
       .sort((a, b) => (b.time.updated ?? b.time.created) - (a.time.updated ?? a.time.created))
       .slice(0, 5)
   })
