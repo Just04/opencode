@@ -87,6 +87,20 @@ import {
 } from "./layout/sidebar-workspace"
 import { ProjectDragOverlay, SortableProject, type ProjectSidebarContext } from "./layout/sidebar-project"
 import { SidebarContent } from "./layout/sidebar-shell"
+import { showNewConversationDialog } from "@/utils/start-conversation"
+import { useConversationPresets } from "@/hooks/use-conversation-presets"
+import {
+  conversationDirectoriesFromConfig,
+  conversationDirectoriesResolved,
+  hasConversationUi,
+} from "@/config/conversation-presets"
+
+import {
+  conversationMetaFromPreset,
+  persistConversationSessionMeta,
+  sessionWithConversation,
+} from "@/utils/conversation-session-meta"
+import { PendingConversationPreset } from "@/utils/pending-conversation-preset"
 
 export default function Layout(props: ParentProps) {
   const [store, setStore, , ready] = persisted(
@@ -1029,6 +1043,13 @@ export default function Layout(props: ParentProps) {
         onSelect: () => layout.sidebar.toggle(),
       },
       {
+        id: "conversation.new",
+        title: language.t("command.conversation.new"),
+        category: language.t("command.category.session"),
+        keybind: "mod+n",
+        onSelect: () => startNewConversation(),
+      },
+      {
         id: "project.open",
         title: language.t("command.project.open"),
         category: language.t("command.category.project"),
@@ -1498,6 +1519,62 @@ export default function Layout(props: ParentProps) {
         )
       })
     }
+  }
+
+  function startNewConversation() {
+    const current = server.current
+    if (!current?.http) return
+    const activeDirectory = currentDir()
+    showNewConversationDialog({
+      dialog,
+      sdk: globalSDK,
+      server: current.http,
+      language,
+      home: globalSync.data.path.home,
+      targetDirectory: activeDirectory,
+      onOpen: async (directory, preset) => {
+        const target = activeDirectory || directory
+        const conversation = conversationMetaFromPreset(preset)
+        layout.projects.open(target)
+        server.projects.touch(target)
+        globalSync.child(target)
+        const slug = base64Encode(target)
+        const client = globalSDK.createClient({ directory: target, throwOnError: true })
+        const created = await client.session
+          .create({})
+          .then((x) => x.data)
+          .catch((err) => {
+            showToast({
+              title: language.t("prompt.toast.sessionCreateFailed.title"),
+              description: errorMessage(err, language.t("common.requestFailed")),
+            })
+            return undefined
+          })
+        if (!created?.id) {
+          void navigateToProject(target)
+          return
+        }
+        const saved =
+          (await persistConversationSessionMeta({ client, sessionID: created.id, meta: conversation })) ?? created
+        const row = sessionWithConversation(saved, conversation)
+        const [, setStore] = globalSync.child(target)
+        setStore("session", (list: Session[]) => {
+          const result = Binary.search(list, row.id, (item) => item.id)
+          const next = [...list]
+          if (result.found) {
+            next[result.index] = row
+            return next
+          }
+          next.splice(result.index, 0, row)
+          return next
+        })
+        const meta = PendingConversationPreset.take()
+        if (meta) {
+          setSessionHandoff(row.id, { prompt: "" })
+        }
+        void navigate(`/${slug}/session/${row.id}`)
+      },
+    })
   }
 
   const deleteWorkspace = async (root: string, directory: string, leaveDeletedWorkspace = false) => {
@@ -2356,6 +2433,9 @@ export default function Layout(props: ParentProps) {
       openProjectLabel={language.t("command.project.open")}
       openProjectKeybind={() => command.keybind("project.open")}
       onOpenProject={chooseProject}
+      newConversationLabel={language.t("command.conversation.new")}
+      newConversationKeybind={() => command.keybind("conversation.new")}
+      onNewConversation={startNewConversation}
       renderProjectOverlay={projectOverlay}
       settingsLabel={() => language.t("sidebar.settings")}
       settingsKeybind={() => command.keybind("settings.open")}
@@ -2513,7 +2593,7 @@ export default function Layout(props: ParentProps) {
             </div>
           </div>
         </div>
-        {import.meta.env.DEV && <DebugBar />}
+        {/* {import.meta.env.DEV && <DebugBar />} */}
       </div>
       <Toast.Region />
     </div>

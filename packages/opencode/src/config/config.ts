@@ -61,11 +61,16 @@ function normalizeLoadedConfig(data: unknown, source: string) {
   if (!isRecord(data)) return data
   const copy = { ...data }
   const hadLegacy = "theme" in copy || "keybinds" in copy || "tui" in copy
-  if (!hadLegacy) return copy
-  delete copy.theme
-  delete copy.keybinds
-  delete copy.tui
-  log.warn("tui keys in opencode config are deprecated; move them to tui.json", { path: source })
+  if (hadLegacy) {
+    delete copy.theme
+    delete copy.keybinds
+    delete copy.tui
+    log.warn("tui keys in opencode config are deprecated; move them to tui.json", { path: source })
+  }
+  if ("conversation" in copy) {
+    delete copy.conversation
+    log.warn("conversation key in opencode config is deprecated; move it to conversation.json", { path: source })
+  }
   return copy
 }
 
@@ -288,6 +293,9 @@ export const Info = Schema.Struct({
       }),
     }),
   ),
+  conversation: Schema.optional(Schema.Unknown).annotate({
+    description: "Conversation presets configuration",
+  }),
 }).annotate({ identifier: "Config" })
 
 // Uses the shared `DeepMutable` from `@opencode-ai/core/schema`. See the definition
@@ -417,6 +425,15 @@ export const layer = Layer.effect(
       result = mergeConfig(result, yield* loadFile(path.join(Global.Path.config, "config.json")))
       result = mergeConfig(result, yield* loadFile(path.join(Global.Path.config, "opencode.json")))
       result = mergeConfig(result, yield* loadFile(path.join(Global.Path.config, "opencode.jsonc")))
+
+      const conversationFile = path.join(Global.Path.config, "conversation.json")
+      const conversationText = yield* readConfigFile(conversationFile)
+      if (conversationText) {
+        const parsed = ConfigParse.jsonc(conversationText, conversationFile)
+        if (isRecord(parsed) && isRecord(parsed.conversation)) {
+          result = mergeConfig(result, { conversation: parsed.conversation } as unknown as Info)
+        }
+      }
 
       const legacy = path.join(Global.Path.config, "config")
       if (existsSync(legacy)) {

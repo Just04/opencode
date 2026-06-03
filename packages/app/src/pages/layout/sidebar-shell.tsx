@@ -24,6 +24,9 @@ export const SidebarContent = (props: {
   openProjectLabel: JSX.Element
   openProjectKeybind: Accessor<string | undefined>
   onOpenProject: () => void
+  newConversationLabel: JSX.Element
+  newConversationKeybind: Accessor<string | undefined>
+  onNewConversation: () => void
   renderProjectOverlay: () => JSX.Element
   settingsLabel: Accessor<string>
   settingsKeybind: Accessor<string | undefined>
@@ -83,6 +86,25 @@ export const SidebarContent = (props: {
                   size="large"
                   onClick={props.onOpenProject}
                   aria-label={typeof props.openProjectLabel === "string" ? props.openProjectLabel : undefined}
+                />
+              </Tooltip>
+              <Tooltip
+                placement={placement()}
+                value={
+                  <div class="flex items-center gap-2">
+                    <span>{props.newConversationLabel}</span>
+                    <Show when={!props.mobile && !!props.newConversationKeybind()}>
+                      <span class="text-icon-base text-12-medium">{props.newConversationKeybind()}</span>
+                    </Show>
+                  </div>
+                }
+              >
+                <IconButton
+                  icon="new-session"
+                  variant="ghost"
+                  size="large"
+                  onClick={props.onNewConversation}
+                  aria-label={typeof props.newConversationLabel === "string" ? props.newConversationLabel : undefined}
                 />
               </Tooltip>
             </div>

@@ -44,8 +44,7 @@ function validateCredential<A, E, R>(
 }
 
 function decodeCredential(input: string) {
-  return Encoding.decodeBase64String(input)
-    .asEffect()
+  return Effect.fromResult(Encoding.decodeBase64String(input))
     .pipe(
       Effect.match({
         onFailure: emptyCredential,
