@@ -139,7 +139,7 @@ filterForSession(sessionID, skills)
 ```ts
 // 第 160-168 行：fallback 保护
 if (!allowed && conversation.session_skills) {
-  const builtinOnly = filtered.filter((s) => s.name === "customize-opencode")
+  const builtinOnly = filtered.filter((s) => s.name === BUILTIN_SKILL)  // BUILTIN_SKILL = "customize-opencode"
   return builtinOnly
 }
 ```

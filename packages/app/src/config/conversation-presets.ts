@@ -12,6 +12,8 @@ type ConversationConfig = {
 const readConversation = (config: Config | undefined): ConversationConfig | undefined =>
   (config as unknown as { conversation?: ConversationConfig }).conversation
 
+const BUILTIN_SKILL = "customize-opencode"
+
 export type ConversationPresetIconClass = "data" | "bid" | "onto"
 
 export type ConversationPreset = {
@@ -161,7 +163,7 @@ export function slashSkillVisible(skillName: string, mode: "project" | "qa", con
     const modePresets = presets.filter((preset) => preset.mode === mode)
     if (modePresets.length > 0 && modePresets.some((p) => p.skills.length > 0)) {
       const allowlist = new Set(modePresets.flatMap((p) => p.skills))
-      allowlist.add("customize-opencode")
+      allowlist.add(BUILTIN_SKILL)
       return allowlist.has(skillName)
     }
   }

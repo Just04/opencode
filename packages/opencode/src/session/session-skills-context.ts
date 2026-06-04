@@ -1,7 +1,7 @@
 import { Config } from "@/config/config"
 import type { Info as ConversationInfo } from "@/config/conversation"
 import { Session } from "@/session/session"
-import { SessionSkills } from "@/session/session-skills"
+import { SessionSkills, BUILTIN_SKILL } from "@/session/session-skills"
 import { InstanceState } from "@/effect/instance-state"
 import { Global } from "@opencode-ai/core/global"
 import { Effect } from "effect"
@@ -160,7 +160,7 @@ export const filterForSession = Effect.fn("SessionSkillsContext.filterForSession
   // 8. 关键修复：session_skills=true 但所有回退都解析不到 preset 时
   //    不退回"显示全部"，改成"只保留内置技能"
   if (!allowed && conversation.session_skills) {
-    const builtinOnly = filtered.filter((s) => s.name === "customize-opencode")
+    const builtinOnly = filtered.filter((s) => s.name === BUILTIN_SKILL)
     yield* elog.info("filterForSession: session_skills=true but no preset matched, returning builtin-only", {
       inputSkills: filtered.map((s) => s.name),
       outputSkills: builtinOnly.map((s) => s.name),

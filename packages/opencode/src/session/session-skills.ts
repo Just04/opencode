@@ -6,7 +6,7 @@ import * as Log from "@opencode-ai/core/util/log"
 
 const log = Log.create({ service: "session-skills" })
 
-const BUILTIN_SKILL = "customize-opencode"
+export const BUILTIN_SKILL = "customize-opencode"
 const GLOBAL_SKILLS_DIR = () => path.join(Global.Path.config, "skills")
 
 function isGlobalConfigSkill(skill: SkillInfo) {
