@@ -66,28 +66,32 @@ export function showNewConversationDialog(input: {
   targetDirectory?: string
   mode?: "project" | "qa"
   onOpen: (directory: string, preset: ConversationPreset) => void | Promise<void>
+  onClose?: () => void
 }) {
-  input.dialog.show(() => (
-    <DialogSelectConversation
-      mode={input.mode}
-      onSelect={(preset) => {
-        const presetDir = resolvePresetDirectory(preset.directory, input.home)
-        PendingConversationPreset.set(preset)
-        if (!input.server) {
-          void input.onOpen(input.targetDirectory ?? presetDir, preset)
-          return
-        }
-        void applyPresetSkills({
-          preset,
-          directory: input.targetDirectory ?? presetDir,
-          locale: input.language.locale(),
-          sdk: input.sdk,
-          server: input.server,
-          language: input.language,
-        }).finally(() => {
-          void input.onOpen(input.targetDirectory ?? presetDir, preset)
-        })
-      }}
-    />
-  ))
+  input.dialog.show(
+    () => (
+      <DialogSelectConversation
+        mode={input.mode}
+        onSelect={(preset) => {
+          const presetDir = resolvePresetDirectory(preset.directory, input.home)
+          PendingConversationPreset.set(preset)
+          if (!input.server) {
+            void input.onOpen(input.targetDirectory ?? presetDir, preset)
+            return
+          }
+          void applyPresetSkills({
+            preset,
+            directory: input.targetDirectory ?? presetDir,
+            locale: input.language.locale(),
+            sdk: input.sdk,
+            server: input.server,
+            language: input.language,
+          }).finally(() => {
+            void input.onOpen(input.targetDirectory ?? presetDir, preset)
+          })
+        }}
+      />
+    ),
+    input.onClose,
+  )
 }

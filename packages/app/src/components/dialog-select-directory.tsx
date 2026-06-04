@@ -317,8 +317,8 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
   }
 
   function resolve(absolute: string) {
-    props.onSelect(props.multiple ? [absolute] : absolute)
     dialog.close()
+    props.onSelect(props.multiple ? [absolute] : absolute)
   }
 
   return (

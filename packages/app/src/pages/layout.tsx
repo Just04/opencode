@@ -1469,24 +1469,6 @@ export default function Layout(props: ParentProps) {
       return
     }
 
-    const current = server.current
-    if (current?.http) {
-      showNewConversationDialog({
-        dialog,
-        sdk: globalSDK,
-        server: current.http,
-        language,
-        home: globalSync.data.path.home,
-        targetDirectory: root,
-        mode: layout.mode(),
-        onOpen: (targetDir, _preset) => {
-          const slug = base64Encode(targetDir)
-          navigateWithSidebarReset(`/${slug}/session`)
-        },
-      })
-      return
-    }
-
     navigateWithSidebarReset(`/${base64Encode(root)}/session`)
   }
 
@@ -1597,12 +1579,42 @@ export default function Layout(props: ParentProps) {
   async function chooseProject() {
     function resolve(result: string | string[] | null) {
       if (Array.isArray(result)) {
-        for (const directory of result) {
-          void openProject(directory, false)
+        if (result.length === 1) {
+          resolveSingle(result[0])
+        } else {
+          for (const directory of result) {
+            void openProject(directory, false)
+          }
+          void navigateToProject(result[0])
         }
-        void navigateToProject(result[0])
       } else if (result) {
-        void openProject(result)
+        resolveSingle(result)
+      }
+    }
+
+    function resolveSingle(directory: string) {
+      const current = server.current
+      if (current?.http) {
+        showNewConversationDialog({
+          dialog,
+          sdk: globalSDK,
+          server: current.http,
+          language,
+          home: globalSync.data.path.home,
+          targetDirectory: directory,
+          mode: layout.mode(),
+          onOpen: async (targetDir, preset) => {
+            const slug = base64Encode(targetDir)
+            const client = globalSDK.createClient({ directory: targetDir })
+            await client.session.create({ conversationPresetID: preset.id }).catch(() => {})
+            navigateWithSidebarReset(`/${slug}/session`)
+          },
+          onClose: () => {
+            void openProject(directory)
+          },
+        })
+      } else {
+        void openProject(directory)
       }
     }
 
