@@ -81,10 +81,7 @@ export const SidebarContent = (props: {
                   icon="plus"
                   variant="ghost"
                   size="large"
-                  onClick={() => {
-                    console.log("[plus-btn] sidebar + clicked")
-                    props.onOpenProject?.()
-                  }}
+                  onClick={props.onOpenProject}
                   aria-label={typeof props.openProjectLabel === "string" ? props.openProjectLabel : undefined}
                 />
               </Tooltip>
