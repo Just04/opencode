@@ -7,6 +7,7 @@ type ConversationConfig = {
   presets?: Array<Record<string, unknown>>
   directory?: string
   defaultDirectory?: string
+  session_skills?: boolean
 }
 const readConversation = (config: Config | undefined): ConversationConfig | undefined =>
   (config as unknown as { conversation?: ConversationConfig }).conversation
@@ -153,8 +154,17 @@ export function conversationPresetFromConfig(config: Config | undefined, id: str
 }
 
 export function slashSkillVisible(skillName: string, mode: "project" | "qa", config: Config | undefined) {
+  const conversation = readConversation(config)
   const presets = conversationPresetsWithDefaults(config)
   const tied = new Set(presets.flatMap((preset) => [preset.id, ...preset.skills]))
+  if (conversation?.session_skills && presets.length > 0) {
+    const modePresets = presets.filter((preset) => preset.mode === mode)
+    if (modePresets.length > 0 && modePresets.some((p) => p.skills.length > 0)) {
+      const allowlist = new Set(modePresets.flatMap((p) => p.skills))
+      allowlist.add("customize-opencode")
+      return allowlist.has(skillName)
+    }
+  }
   if (!tied.has(skillName)) return true
   return presets.some(
     (preset) =>
