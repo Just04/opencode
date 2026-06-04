@@ -15,6 +15,7 @@ import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { Identifier } from "@/utils/id"
 import { Worktree as WorktreeState } from "@/utils/worktree"
+import { getConversationSessionMeta } from "@/utils/conversation-session-meta"
 import { buildRequestParts } from "./build-request-parts"
 import { setCursorPosition } from "./editor-dom"
 import { formatServerError } from "@/utils/server-errors"
@@ -34,6 +35,8 @@ export type FollowupDraft = {
   agent: string
   model: { providerID: string; modelID: string }
   variant?: string
+  conversationMode?: "project" | "qa"
+  presetID?: string
 }
 
 type FollowupSendInput = {
@@ -88,6 +91,8 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
         agent: input.draft.agent,
         model: `${input.draft.model.providerID}/${input.draft.model.modelID}`,
         variant: input.draft.variant,
+        conversationMode: input.draft.conversationMode,
+        presetID: input.draft.presetID,
         parts: images.map((attachment) => ({
           id: Identifier.ascending("part"),
           type: "file" as const,
@@ -159,6 +164,8 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
       messageID,
       parts: requestParts,
       variant: input.draft.variant,
+      conversationMode: input.draft.conversationMode,
+      presetID: input.draft.presetID,
     })
     return true
   } catch (err) {
@@ -403,6 +410,8 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       agent,
       model,
       variant,
+      conversationMode: layout.mode(),
+      presetID: getConversationSessionMeta(session.id)?.presetID,
     }
 
     const clearInput = () => {
@@ -466,6 +475,8 @@ export function createPromptSubmit(input: PromptSubmitInput) {
             agent,
             model: `${model.providerID}/${model.modelID}`,
             variant,
+            conversationMode: layout.mode(),
+            presetID: getConversationSessionMeta(session.id)?.presetID,
             parts: images.map((attachment) => ({
               id: Identifier.ascending("part"),
               type: "file" as const,

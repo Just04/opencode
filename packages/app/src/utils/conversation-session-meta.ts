@@ -26,6 +26,7 @@ export type ConversationSessionMeta = {
   tagLabel: string
   icon: string
   iconClass: ConversationPresetIconClass
+  mode?: "project" | "qa"
 }
 
 const STORAGE_KEY = "opencode.conversation-session-meta.v1"
@@ -67,6 +68,7 @@ export function conversationMetaFromPreset(preset: ConversationPreset): Conversa
     tagLabel: preset.tagLabel,
     icon: preset.icon,
     iconClass: preset.iconClass,
+    mode: preset.mode,
   }
 }
 
@@ -76,6 +78,7 @@ export function conversationPayloadFromMeta(meta: ConversationSessionMeta) {
     tagLabel: meta.tagLabel,
     icon: meta.icon,
     iconClass: meta.iconClass,
+    mode: meta.mode,
   }
 }
 

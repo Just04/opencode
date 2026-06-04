@@ -1630,22 +1630,34 @@ NOTE: At any point in time through this workflow you should feel free to ask the
     const prompt: (input: PromptInput) => Effect.Effect<MessageV2.WithParts, Image.Error> = Effect.fn(
       "SessionPrompt.prompt",
     )(function* (input: PromptInput) {
-      const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
-      yield* revert.cleanup(session)
-      const message = yield* createUserMessage(input)
-      yield* sessions.touch(input.sessionID)
+      if (input.conversationMode) SessionSkillsContext.setPromptMode(input.sessionID, input.conversationMode)
+      if (input.presetID) SessionSkillsContext.setPromptPresetID(input.sessionID, input.presetID)
+      const run = Effect.gen(function* () {
+        const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
+        yield* revert.cleanup(session)
+        const message = yield* createUserMessage(input)
+        yield* sessions.touch(input.sessionID)
 
-      const permissions: Permission.Ruleset = []
-      for (const [t, enabled] of Object.entries(input.tools ?? {})) {
-        permissions.push({ permission: t, action: enabled ? "allow" : "deny", pattern: "*" })
-      }
-      if (permissions.length > 0) {
-        session.permission = permissions
-        yield* sessions.setPermission({ sessionID: session.id, permission: permissions })
-      }
+        const permissions: Permission.Ruleset = []
+        for (const [t, enabled] of Object.entries(input.tools ?? {})) {
+          permissions.push({ permission: t, action: enabled ? "allow" : "deny", pattern: "*" })
+        }
+        if (permissions.length > 0) {
+          session.permission = permissions
+          yield* sessions.setPermission({ sessionID: session.id, permission: permissions })
+        }
 
-      if (input.noReply === true) return message
-      return yield* loop({ sessionID: input.sessionID })
+        if (input.noReply === true) return message
+        return yield* loop({ sessionID: input.sessionID })
+      })
+      return yield* run.pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            if (input.conversationMode) SessionSkillsContext.clearPromptMode(input.sessionID)
+            if (input.presetID) SessionSkillsContext.clearPromptPresetID(input.sessionID)
+          }),
+        ),
+      )
     })
 
     const lastAssistant = Effect.fnUntraced(function* (sessionID: SessionID) {
@@ -2010,6 +2022,8 @@ NOTE: At any point in time through this workflow you should feel free to ask the
         agent: userAgent,
         parts,
         variant: input.variant,
+        conversationMode: input.conversationMode,
+        presetID: input.presetID,
       })
       yield* bus.publish(Command.Event.Executed, {
         name: input.command,
@@ -2072,11 +2086,19 @@ const ModelRef = Schema.Struct({
   modelID: ModelID,
 })
 
+export const ConversationMode = Schema.Literals(["project", "qa"])
+
 export const PromptInput = Schema.Struct({
   sessionID: SessionID,
   messageID: Schema.optional(MessageID),
   model: Schema.optional(ModelRef),
   agent: Schema.optional(Schema.String),
+  conversationMode: Schema.optional(ConversationMode).annotate({
+    description: 'UI sidebar mode ("qa" or "project") for filtering conversation preset skills',
+  }),
+  presetID: Schema.optional(Schema.String).annotate({
+    description: "Selected conversation preset ID for skill filtering",
+  }),
   noReply: Schema.optional(Schema.Boolean),
   tools: Schema.optional(Schema.Record(Schema.String, Schema.Boolean)).annotate({
     description:
@@ -2114,6 +2136,8 @@ export const CommandInput = Schema.Struct({
   sessionID: SessionID,
   agent: Schema.optional(Schema.String),
   model: Schema.optional(Schema.String),
+  conversationMode: Schema.optional(ConversationMode),
+  presetID: Schema.optional(Schema.String),
   arguments: Schema.String,
   command: Schema.String,
   variant: Schema.optional(Schema.String),

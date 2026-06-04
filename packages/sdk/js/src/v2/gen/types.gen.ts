@@ -5834,6 +5834,8 @@ export type SessionPromptData = {
       modelID: string
     }
     agent?: string
+    conversationMode?: "project" | "qa"
+    presetID?: string
     noReply?: boolean
     tools?: {
       [key: string]: boolean
@@ -6169,6 +6171,8 @@ export type SessionPromptAsyncData = {
       modelID: string
     }
     agent?: string
+    conversationMode?: "project" | "qa"
+    presetID?: string
     noReply?: boolean
     tools?: {
       [key: string]: boolean
@@ -6215,6 +6219,8 @@ export type SessionCommandData = {
     messageID?: string
     agent?: string
     model?: string
+    conversationMode?: "project" | "qa"
+    presetID?: string
     arguments: string
     command: string
     variant?: string

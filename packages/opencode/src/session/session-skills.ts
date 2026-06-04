@@ -65,14 +65,60 @@ export function presetIDForDirectory(
   if (!conversation?.presets?.length) return undefined
   const key = path.normalize(directory)
   const match = conversation.presets.find((preset) => {
-    const dir = preset.directory.startsWith("~/")
-      ? home
-        ? path.normalize(path.join(home, preset.directory.slice(2)))
-        : undefined
-      : path.normalize(preset.directory)
+    const dir = presetDirectory(preset.directory, home)
     return dir === key
   })
   return match?.id
+}
+
+function presetDirectory(directory: string, home: string) {
+  if (directory.startsWith("~/")) {
+    if (!home) return undefined
+    return path.normalize(path.join(home, directory.slice(2)))
+  }
+  return path.normalize(directory)
+}
+
+export function filterSkillsByMode(
+  skills: SkillInfo[],
+  conversation: ConversationInfo | undefined,
+  mode: "project" | "qa",
+) {
+  if (!conversation?.presets?.length) return skills
+  const presets = conversation.presets
+  const tied = new Set(presets.flatMap((preset) => [preset.id, ...(preset.skills ?? [])]))
+  return skills.filter((skill) => {
+    if (!tied.has(skill.name)) return true
+    return presets.some(
+      (preset) =>
+        (preset.mode ?? "project") === mode &&
+        (preset.id === skill.name || (preset.skills ?? []).includes(skill.name)),
+    )
+  })
+}
+
+export function inferConversationMode(
+  conversation: ConversationInfo | undefined,
+  input: { directory: string; presetID?: string },
+  home: string,
+): "project" | "qa" | undefined {
+  if (!conversation?.presets?.length) return undefined
+  if (input.presetID) {
+    const preset = conversation.presets.find((item) => item.id === input.presetID)
+    if (preset) return preset.mode ?? "project"
+  }
+  const key = path.normalize(input.directory)
+  const matches = conversation.presets.filter((preset) => presetDirectory(preset.directory, home) === key)
+  if (matches.length === 1) return matches[0]!.mode ?? "project"
+  const configured = conversation.defaultDirectory ?? conversation.directory
+  if (configured) {
+    const resolved = presetDirectory(
+      configured.startsWith("~/") ? configured : path.normalize(configured),
+      home,
+    )
+    if (resolved === key) return "qa"
+  }
+  return undefined
 }
 
 export * as SessionSkills from "./session-skills"
