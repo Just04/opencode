@@ -1,7 +1,12 @@
 import type { Config } from "@opencode-ai/sdk/v2/client"
 import { resolveConversationIcon } from "@/config/conversation-preset-icons"
+import { logQaSidebar } from "@/utils/qa-sidebar-debug"
 
-type ConversationConfig = { presets?: Array<Record<string, unknown>> }
+type ConversationConfig = {
+  presets?: Array<Record<string, unknown>>
+  directory?: string
+  defaultDirectory?: string
+}
 const readConversation = (config: Config | undefined): ConversationConfig | undefined =>
   (config as unknown as { conversation?: ConversationConfig }).conversation
 
@@ -17,6 +22,7 @@ export type ConversationPreset = {
   skillTags: string[]
   directory: string
   skills: string[]
+  mode: "project" | "qa"
 }
 
 const DEFAULT_PRESETS: ConversationPreset[] = [
@@ -30,6 +36,7 @@ const DEFAULT_PRESETS: ConversationPreset[] = [
     skillTags: ["数据分析", "SQL 逻辑", "可视化"],
     directory: "~/opencode-workspaces/data-query",
     skills: [],
+    mode: "qa",
   },
   {
     id: "bid-writing",
@@ -41,6 +48,7 @@ const DEFAULT_PRESETS: ConversationPreset[] = [
     skillTags: ["文档解析", "长文本排版", "合规检查"],
     directory: "~/opencode-workspaces/bid-writing",
     skills: [],
+    mode: "project",
   },
   {
     id: "ontology-kb",
@@ -52,6 +60,7 @@ const DEFAULT_PRESETS: ConversationPreset[] = [
     skillTags: ["Apache Jena", "SPARQL", "OWL 推理"],
     directory: "~/opencode-workspaces/ontology-kb",
     skills: [],
+    mode: "project",
   },
 ]
 
@@ -64,6 +73,7 @@ function normalizePreset(
   raw: Record<string, unknown>,
 ): ConversationPreset | undefined {
   if (!raw.id || !raw.name || !raw.description || !raw.directory) return undefined
+  const mode = raw.mode === "qa" ? "qa" : "project"
   return {
     id: raw.id as string,
     name: raw.name as string,
@@ -77,6 +87,7 @@ function normalizePreset(
     skillTags: (raw.skillTags as string[]) ?? [],
     directory: raw.directory as string,
     skills: (raw.skills as string[]) ?? [],
+    mode,
   }
 }
 
@@ -132,4 +143,27 @@ export function conversationPresetsWithDefaults(config: Config | undefined) {
 
 export function conversationPresetFromConfig(config: Config | undefined, id: string) {
   return conversationPresetsFromConfig(config).find((item) => item.id === id)
+}
+
+export function qaDefaultDirectory(config: Config | undefined, home: string): string | undefined {
+  const conversation = readConversation(config)
+  const configured = conversation?.directory ?? conversation?.defaultDirectory
+  if (!configured) {
+    logQaSidebar("resolve: skip (no directory in config)", {
+      hasConversation: !!conversation,
+      home,
+    })
+    return undefined
+  }
+  const resolved = resolvePresetDirectory(configured, home)
+  if (!resolved || resolved.startsWith("~")) {
+    logQaSidebar("resolve: skip (path unresolved)", {
+      configured,
+      resolved: resolved ?? null,
+      home,
+    })
+    return undefined
+  }
+  logQaSidebar("resolve: ok", { configured, resolved, home })
+  return resolved
 }

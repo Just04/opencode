@@ -18,7 +18,7 @@ import { useGlobalSync, useQueryOptions } from "@/context/global-sync"
 import { useLanguage } from "@/context/language"
 import { pathKey } from "@/utils/path-key"
 import { NewSessionItem, SessionItem, SessionSkeleton } from "./sidebar-items"
-import { sortedRootSessions } from "./helpers"
+import { sortedRootSessionsForDirectory } from "./helpers"
 import { useIsFetching } from "@tanstack/solid-query"
 
 type InlineEditorComponent = (props: {
@@ -309,7 +309,7 @@ export const SortableWorkspace = (props: {
     pendingRename: false,
   })
   const slug = createMemo(() => base64Encode(props.directory))
-  const sessions = createMemo(() => sortedRootSessions(workspaceStore, props.sortNow()))
+  const sessions = createMemo(() => sortedRootSessionsForDirectory(workspaceStore, props.directory, props.sortNow()))
   const local = createMemo(() => props.directory === props.project.worktree)
   const active = createMemo(() => pathKey(props.ctx.currentDir()) === pathKey(props.directory))
   const workspaceValue = createMemo(() => {
@@ -454,7 +454,9 @@ export const LocalWorkspace = (props: {
     return { store, setStore }
   })
   const slug = createMemo(() => base64Encode(props.project.worktree))
-  const sessions = createMemo(() => sortedRootSessions(workspace().store, props.sortNow()))
+  const sessions = createMemo(() =>
+    sortedRootSessionsForDirectory(workspace().store, props.project.worktree, props.sortNow()),
+  )
   const count = createMemo(() => sessions()?.length ?? 0)
   const fetching = useIsFetching(() => queryOptions.sessions(pathKey(props.project.worktree)))
   const hasMore = createMemo(() => workspace().store.sessionTotal > count())

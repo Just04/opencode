@@ -430,8 +430,17 @@ export const layer = Layer.effect(
       const conversationText = yield* readConfigFile(conversationFile)
       if (conversationText) {
         const parsed = ConfigParse.jsonc(conversationText, conversationFile)
-        if (isRecord(parsed) && isRecord(parsed.conversation)) {
-          result = mergeConfig(result, { conversation: parsed.conversation } as unknown as Info)
+        if (isRecord(parsed)) {
+          const block = isRecord(parsed.conversation)
+            ? parsed.conversation
+            : parsed.directory !== undefined ||
+                parsed.defaultDirectory !== undefined ||
+                Array.isArray(parsed.presets)
+              ? parsed
+              : undefined
+          if (block) {
+            result = mergeConfig(result, { conversation: block } as unknown as Info)
+          }
         }
       }
 

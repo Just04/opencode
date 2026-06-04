@@ -64,10 +64,12 @@ export function showNewConversationDialog(input: {
   language: ReturnType<typeof useLanguage>
   home: string
   targetDirectory?: string
+  mode?: "project" | "qa"
   onOpen: (directory: string, preset: ConversationPreset) => void | Promise<void>
 }) {
   input.dialog.show(() => (
     <DialogSelectConversation
+      mode={input.mode}
       onSelect={(preset) => {
         const presetDir = resolvePresetDirectory(preset.directory, input.home)
         PendingConversationPreset.set(preset)

@@ -27,7 +27,8 @@ import {
 import { createChildStoreManager } from "./global-sync/child-store"
 import { applyDirectoryEvent, applyGlobalEvent, cleanupDroppedSessionCaches } from "./global-sync/event-reducer"
 import { clearSessionPrefetchDirectory } from "./global-sync/session-prefetch"
-import { estimateRootSessionTotal, loadRootSessionsWithFallback } from "./global-sync/session-load"
+import { estimateRootSessionTotal } from "./global-sync/session-load"
+import { fetchWorkspaceRootSessions } from "@/utils/qa-workspace-sessions"
 import { trimSessions } from "./global-sync/session-trim"
 import type { ProjectMeta } from "./global-sync/types"
 import { SESSION_RECENT_LIMIT } from "./global-sync/types"
@@ -36,6 +37,7 @@ import { queryOptions, useMutation, useQueries, useQuery, useQueryClient } from 
 import { createRefreshQueue } from "./global-sync/queue"
 import { directoryKey } from "./global-sync/utils"
 import { PathKey } from "@/utils/path-key"
+import { logSessionSidebar } from "@/utils/session-sidebar-debug"
 
 type GlobalStore = {
   ready: boolean
@@ -125,8 +127,9 @@ function createGlobalSync() {
       return providerQuery.data ?? EMPTY
     },
     get config() {
+      if (configQuery.data) return configQuery.data
       if (configQuery.isLoading) return {}
-      return configQuery.data ?? {}
+      return {}
     },
     get reload() {
       return updateConfigMutation.isPending ? "pending" : undefined
@@ -225,18 +228,37 @@ function createGlobalSync() {
     },
   })
 
-  async function loadSessions(directory: string) {
+  async function loadSessions(directory: string, options?: { force?: boolean }) {
     const key = directoryKey(directory)
     const pending = sessionLoads.get(key)
-    if (pending) return pending
+    if (pending) {
+      if (!options?.force) {
+        logSessionSidebar("load", "reuse pending", { directory, key })
+        return pending
+      }
+      logSessionSidebar("load", "await pending before force", { directory, key })
+      await pending
+    }
 
     children.pin(key)
     const [store, setStore] = children.child(directory, { bootstrap: false })
+    if (options?.force) {
+      sessionMeta.delete(key)
+      void queryClient.invalidateQueries({ queryKey: queryOptionsApi.sessions(key).queryKey })
+    }
     const meta = sessionMeta.get(key)
-    if (meta && meta.limit >= store.limit) {
+    if (!options?.force && meta && meta.limit >= store.limit) {
       const next = trimSessions(store.session, {
         limit: store.limit,
         permission: store.permission,
+      })
+      logSessionSidebar("load", "skip fetch (cached meta)", {
+        directory,
+        key,
+        metaLimit: meta.limit,
+        storeLimit: store.limit,
+        storeCount: store.session.length,
+        visible: next.length,
       })
       if (next.length !== store.session.length) {
         setStore("session", reconcile(next, { key: "id" }))
@@ -246,20 +268,24 @@ function createGlobalSync() {
       return
     }
 
-    const limit = Math.max(store.limit + SESSION_RECENT_LIMIT, SESSION_RECENT_LIMIT)
+    logSessionSidebar("load", "fetch start", {
+      directory,
+      key,
+      force: !!options?.force,
+      storeLimit: store.limit,
+      storeCount: store.session.length,
+      pathDirectory: store.path.directory || null,
+    })
+
+    const fetchLimit = Math.max(store.limit + SESSION_RECENT_LIMIT, SESSION_RECENT_LIMIT)
     const promise = queryClient
       .fetchQuery({
         ...queryOptionsApi.sessions(key),
         queryFn: () =>
-          loadRootSessionsWithFallback({
-            directory,
-            limit,
-            list: (query) => globalSDK.client.session.list(query),
-          })
-            .then((x) => {
-              const nonArchived = (x.data ?? [])
+          fetchWorkspaceRootSessions({ client: sdkFor(directory), directory, limit: fetchLimit })
+            .then((matched) => {
+              const nonArchived = matched
                 .filter((s) => !!s?.id)
-                .filter((s) => !s.time?.archived)
                 .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
               const limit = store.limit
               const childSessions = store.session.filter((s) => !!s.parentID)
@@ -272,16 +298,30 @@ function createGlobalSync() {
                   "sessionTotal",
                   estimateRootSessionTotal({
                     count: nonArchived.length,
-                    limit: x.limit,
-                    limited: x.limited,
+                    limit: fetchLimit,
+                    limited: nonArchived.length >= fetchLimit,
                   }),
                 )
                 setStore("session", reconcile(sessions, { key: "id" }))
                 cleanupDroppedSessionCaches(store, setStore, sessions, setSessionTodo)
               })
               sessionMeta.set(key, { limit })
+              logSessionSidebar("load", "fetch done", {
+                directory,
+                key,
+                scope: "project",
+                matched: matched.length,
+                fetched: nonArchived.length,
+                visible: sessions.length,
+                pathDirectory: store.path.directory || null,
+              })
             })
             .catch((err) => {
+              logSessionSidebar("load", "fetch failed", {
+                directory,
+                key,
+                error: err instanceof Error ? err.message : String(err),
+              })
               console.error("Failed to load sessions", err)
               const project = getFilename(directory)
               showToast({

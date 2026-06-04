@@ -29,6 +29,12 @@ export const roots = (store: SessionStore) =>
 
 export const sortedRootSessions = (store: SessionStore, now: number) => roots(store).sort(sortSessions(now))
 
+export const sortedRootSessionsForDirectory = (
+  store: { session?: Session[] },
+  directory: string,
+  now: number,
+) => sortedRootSessions({ session: store.session ?? [], path: { directory } }, now)
+
 export const latestRootSession = (stores: SessionStore[], now: number) =>
   stores.flatMap(roots).sort(sortSessions(now))[0]
 

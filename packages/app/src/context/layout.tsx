@@ -262,6 +262,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         handoff: {
           tabs: undefined as TabHandoff | undefined,
         },
+        mode: "project" as "project" | "qa",
       }),
     )
 
@@ -602,6 +603,13 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
           const current = store.sidebar.workspaces[directory] ?? store.sidebar.workspacesDefault ?? false
           setStore("sidebar", "workspaces", directory, !current)
         },
+      },
+      mode: createMemo(() => store.mode),
+      setMode(mode: "project" | "qa") {
+        setStore("mode", mode)
+      },
+      toggleMode() {
+        setStore("mode", (prev) => (prev === "project" ? "qa" : "project"))
       },
       terminal: {
         height: createMemo(() => store.terminal.height),

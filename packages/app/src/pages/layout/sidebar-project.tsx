@@ -1,3 +1,4 @@
+import { type Session } from "@opencode-ai/sdk/v2/client"
 import { createMemo, For, Show, type Accessor, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import { base64Encode } from "@opencode-ai/core/util/encode"
@@ -11,7 +12,7 @@ import { useGlobalSync } from "@/context/global-sync"
 import { useLanguage } from "@/context/language"
 import { useNotification } from "@/context/notification"
 import { ProjectIcon, SessionItem, type SessionItemProps } from "./sidebar-items"
-import { displayName, sortedRootSessions } from "./helpers"
+import { displayName, sortedRootSessionsForDirectory } from "./helpers"
 
 export type ProjectSidebarContext = {
   currentDir: Accessor<string>
@@ -192,8 +193,8 @@ const ProjectPreviewPanel = (props: {
   workspaceEnabled: Accessor<boolean>
   workspaces: Accessor<string[]>
   label: (directory: string) => string
-  projectSessions: Accessor<ReturnType<typeof sortedRootSessions>>
-  workspaceSessions: (directory: string) => ReturnType<typeof sortedRootSessions>
+  projectSessions: Accessor<Session[]>
+  workspaceSessions: (directory: string) => Session[]
   ctx: ProjectSidebarContext
   language: ReturnType<typeof useLanguage>
 }): JSX.Element => (
@@ -308,10 +309,12 @@ export const SortableProject = (props: {
       return Object.keys(store.session_status).some((id) => store.session_working(id))
     }),
   )
-  const projectSessions = createMemo(() => sortedRootSessions(projectStore(), props.sortNow()))
+  const projectSessions = createMemo(() =>
+    sortedRootSessionsForDirectory(projectStore(), props.project.worktree, props.sortNow()),
+  )
   const workspaceSessions = (directory: string) => {
     const [data] = globalSync.child(directory, { bootstrap: false })
-    return sortedRootSessions(data, props.sortNow())
+    return sortedRootSessionsForDirectory(data, directory, props.sortNow())
   }
   const tile = () => (
     <ProjectTile

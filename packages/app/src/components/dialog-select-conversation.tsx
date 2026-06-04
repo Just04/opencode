@@ -9,6 +9,7 @@ import { conversationIconClass } from "@/pages/layout/conversation-sidebar-style
 
 export type DialogSelectConversationProps = {
   onSelect: (preset: ConversationPreset) => void
+  mode?: "project" | "qa"
 }
 
 function OptionCard(props: { preset: ConversationPreset; onSelect: () => void }) {
@@ -53,6 +54,11 @@ export function DialogSelectConversation(props: DialogSelectConversationProps) {
   const dialog = useDialog()
   const language = useLanguage()
   const presets = useConversationPresets()
+  const filtered = () => {
+    const mode = props.mode
+    if (!mode) return presets()
+    return presets().filter((p) => p.mode === mode)
+  }
 
   return (
     <Dialog
@@ -62,7 +68,7 @@ export function DialogSelectConversation(props: DialogSelectConversationProps) {
       fit
     >
       <div class="flex flex-col gap-1 px-4 pb-4 pt-2 max-h-[min(60vh,480px)] overflow-y-auto">
-        <For each={presets()}>
+        <For each={filtered()}>
           {(preset) => (
             <OptionCard
               preset={preset}

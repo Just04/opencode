@@ -4,8 +4,11 @@ import { Icon } from "@opencode-ai/ui/icon"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { Spinner } from "@opencode-ai/ui/spinner"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
+import { base64Encode } from "@opencode-ai/core/util/encode"
 import { getFilename } from "@opencode-ai/core/util/path"
-import { A, useParams } from "@solidjs/router"
+import { A, useLocation, useParams } from "@solidjs/router"
+import { decode64 } from "@/utils/base64"
+import { pathKey } from "@/utils/path-key"
 import { type Accessor, createMemo, For, type JSX, Match, Show, Switch } from "solid-js"
 import { useGlobalSync } from "@/context/global-sync"
 import { useLanguage } from "@/context/language"
@@ -97,7 +100,6 @@ export type SessionItemProps = {
 
 const SessionRow = (props: {
   session: Session
-  slug: string
   mobile?: boolean
   dense?: boolean
   tint: Accessor<string | undefined>
@@ -112,9 +114,12 @@ const SessionRow = (props: {
 }): JSX.Element => {
   const title = () => sessionTitle(props.session.title)
 
+  const href = () => `/${base64Encode(props.session.directory)}/session/${props.session.id}`
+
   return (
     <A
-      href={`/${props.slug}/session/${props.session.id}`}
+      href={href()}
+      activeClass="active"
       class={`flex items-center gap-2 min-w-0 w-full text-left focus:outline-none ${props.dense ? "py-0.5" : "py-1"}`}
       onPointerDown={props.warmPress}
       onFocus={props.warmFocus}
@@ -151,6 +156,7 @@ const SessionRow = (props: {
 
 export const SessionItem = (props: SessionItemProps): JSX.Element => {
   const params = useParams()
+  const location = useLocation()
   const layout = useLayout()
   const language = useLanguage()
   const notification = useNotification()
@@ -176,6 +182,15 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
     return childSessionOnPath(sessionStore.session, props.session.id, params.id)
   })
 
+  const selected = createMemo(() => {
+    const sessionPath = `/${base64Encode(props.session.directory)}/session/${props.session.id}`
+    if (location.pathname === sessionPath) return true
+    if (!params.id || params.id !== props.session.id) return false
+    const routeDir = decode64(params.dir)
+    if (!routeDir) return false
+    return pathKey(routeDir) === pathKey(props.session.directory)
+  })
+
   const warm = (span: number, priority: "high" | "low") => {
     const nav = props.navList?.()
     const list = nav?.some((item) => item.id === props.session.id && item.directory === props.session.directory)
@@ -199,7 +214,6 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
   const item = (
     <SessionRow
       session={props.session}
-      slug={props.slug}
       mobile={props.mobile}
       dense={props.dense}
       tint={tint}
@@ -219,6 +233,7 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
       <div
         data-session-id={props.session.id}
         class="group/session relative w-full min-w-0 rounded-md cursor-default pr-3 transition-colors hover:bg-surface-raised-base-hover [&:has(:focus-visible)]:bg-surface-raised-base-hover has-[[data-expanded]]:bg-surface-raised-base-hover has-[.active]:bg-surface-base-active"
+        classList={{ "bg-surface-base-active": selected() }}
         style={{ "padding-left": `${8 + (props.level ?? 0) * 16}px` }}
       >
         <div class="flex min-w-0 items-center gap-1">

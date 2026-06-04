@@ -346,6 +346,12 @@ export default function Page() {
     })
   })
 
+  createEffect(() => {
+    if (layout.mode() === "qa") {
+      layout.fileTree.close()
+    }
+  })
+
   const [ui, setUi] = createStore({
     pendingMessage: undefined as string | undefined,
     reviewSnap: false,
