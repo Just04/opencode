@@ -1,6 +1,7 @@
 import type { Config } from "@opencode-ai/sdk/v2/client"
 import { resolveConversationIcon } from "@/config/conversation-preset-icons"
 import { logQaSidebar } from "@/utils/qa-sidebar-debug"
+import { pathKey } from "@/utils/path-key"
 
 type ConversationConfig = {
   presets?: Array<Record<string, unknown>>
@@ -60,9 +61,15 @@ const DEFAULT_PRESETS: ConversationPreset[] = [
     skillTags: ["Apache Jena", "SPARQL", "OWL 推理"],
     directory: "~/opencode-workspaces/ontology-kb",
     skills: [],
-    mode: "project",
+    mode: "qa",
   },
 ]
+
+export function effectiveConversationConfig(global: Config | undefined, local: Config | undefined) {
+  if (hasConversationConfig(local)) return local
+  if (hasConversationConfig(global)) return global
+  return local ?? global
+}
 
 export function normalizeIconClass(value: string | undefined): ConversationPresetIconClass {
   if (value === "bid" || value === "onto") return value
@@ -145,6 +152,16 @@ export function conversationPresetFromConfig(config: Config | undefined, id: str
   return conversationPresetsFromConfig(config).find((item) => item.id === id)
 }
 
+export function slashSkillVisible(skillName: string, mode: "project" | "qa", config: Config | undefined) {
+  const presets = conversationPresetsWithDefaults(config)
+  const tied = new Set(presets.flatMap((preset) => [preset.id, ...preset.skills]))
+  if (!tied.has(skillName)) return true
+  return presets.some(
+    (preset) =>
+      preset.mode === mode && (preset.id === skillName || preset.skills.includes(skillName)),
+  )
+}
+
 export function qaDefaultDirectory(config: Config | undefined, home: string): string | undefined {
   const conversation = readConversation(config)
   const configured = conversation?.directory ?? conversation?.defaultDirectory
@@ -166,4 +183,61 @@ export function qaDefaultDirectory(config: Config | undefined, home: string): st
   }
   logQaSidebar("resolve: ok", { configured, resolved, home })
   return resolved
+}
+
+export function qaEffectiveDirectory(
+  config: Config | undefined,
+  home: string,
+  input?: { routeDirectory?: string; lastQaSessionDirectory?: string },
+): string | undefined {
+  const configured = qaDefaultDirectory(config, home)
+  if (configured) return configured
+
+  const route = input?.routeDirectory?.trim()
+  if (route) {
+    logQaSidebar("resolve: fallback route", { route })
+    return route
+  }
+
+  const last = input?.lastQaSessionDirectory?.trim()
+  if (last) {
+    logQaSidebar("resolve: fallback last qa session", { last })
+    return last
+  }
+
+  const qaPreset = conversationPresetsWithDefaults(config).find((preset) => preset.mode === "qa")
+  if (qaPreset) {
+    const resolved = resolvePresetDirectory(qaPreset.directory, home)
+    if (resolved && !resolved.startsWith("~")) {
+      logQaSidebar("resolve: fallback qa preset", { preset: qaPreset.id, resolved })
+      return resolved
+    }
+  }
+
+  return undefined
+}
+
+export function qaSidebarDirectories(
+  config: Config | undefined,
+  home: string,
+  input?: { routeDirectory?: string; lastQaSessionDirectory?: string },
+): string[] {
+  const seen = new Set<string>()
+  const dirs: string[] = []
+  const add = (directory: string | undefined) => {
+    if (!directory?.trim() || directory.startsWith("~")) return
+    const key = pathKey(directory)
+    if (!key || seen.has(key)) return
+    seen.add(key)
+    dirs.push(directory)
+  }
+
+  add(qaEffectiveDirectory(config, home, input))
+  for (const preset of conversationPresetsWithDefaults(config).filter((preset) => preset.mode === "qa")) {
+    add(resolvePresetDirectory(preset.directory, home))
+  }
+  add(input?.routeDirectory)
+  add(input?.lastQaSessionDirectory)
+
+  return dirs
 }

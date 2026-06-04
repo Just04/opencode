@@ -102,6 +102,8 @@ import {
   conversationDirectoriesResolved,
   hasConversationUi,
   qaDefaultDirectory,
+  qaEffectiveDirectory,
+  qaSidebarDirectories,
 } from "@/config/conversation-presets"
 
 import {
@@ -2002,15 +2004,24 @@ export default function Layout(props: ParentProps) {
     })
   })
   createEffect(() => {
-    const dir = qaDefaultDirectory(globalSync.data.config, globalSync.data.path.home)
+    const home = globalSync.data.path.home
+    const dir = qaEffectiveDirectory(globalSync.data.config, home, {
+      routeDirectory: currentDir(),
+      lastQaSessionDirectory: store.lastQaSession?.directory,
+    })
     if (dir) {
       setQaDirCache("dir", dir)
       logQaSidebar("cache: saved dir", { dir })
     }
   })
   const qaDefaultDir = createMemo(() => {
-    const fromConfig = qaDefaultDirectory(globalSync.data.config, globalSync.data.path.home)
-    const dir = fromConfig ?? qaDirCache.dir
+    const home = globalSync.data.path.home
+    const fromConfig = qaDefaultDirectory(globalSync.data.config, home)
+    const effective = qaEffectiveDirectory(globalSync.data.config, home, {
+      routeDirectory: layout.mode() === "qa" ? currentDir() : undefined,
+      lastQaSessionDirectory: store.lastQaSession?.directory,
+    })
+    const dir = effective ?? fromConfig ?? qaDirCache.dir
     logQaSidebar("dir: effective", {
       fromConfig: fromConfig ?? null,
       fromCache: qaDirCache.dir ?? null,
@@ -2019,6 +2030,12 @@ export default function Layout(props: ParentProps) {
     })
     return dir
   })
+  const qaSidebarDirs = createMemo(() =>
+    qaSidebarDirectories(globalSync.data.config, globalSync.data.path.home, {
+      routeDirectory: currentDir(),
+      lastQaSessionDirectory: store.lastQaSession?.directory,
+    }),
+  )
   const qaSide = createMemo(() => {
     if (layout.mode() !== "qa") return 0
     return Math.max(layout.sidebar.width(), 244)
@@ -2053,18 +2070,25 @@ export default function Layout(props: ParentProps) {
       qaSessionLoadKey = undefined
       return
     }
-    if (!dir || !home) {
-      logQaSidebar("load: skip (missing dir or home)", { dir, home })
+    if (!home) {
+      logQaSidebar("load: skip (missing home)", { home })
       return
     }
-    layout.projects.open(dir)
-    const key = pathKey(dir)
+    const dirs = qaSidebarDirs()
+    if (dirs.length === 0) {
+      logQaSidebar("load: skip (no qa directories)", { routeDir: currentDir() || null })
+      return
+    }
+    const key = dirs.map(pathKey).sort().join("|")
     if (qaSessionLoadKey === key) return
     qaSessionLoadKey = key
-    logQaSidebar("load: start (shared loadSessions)", { dir, key })
-    void globalSync.project.loadSessions(dir, { force: true }).catch((err) => {
-      logQaSidebar("load: failed", { dir, error: err instanceof Error ? err.message : String(err) })
-    })
+    logQaSidebar("load: start (shared loadSessions)", { dirs, key })
+    for (const dir of dirs) {
+      layout.projects.open(dir)
+      void globalSync.project.loadSessions(dir, { force: true }).catch((err) => {
+        logQaSidebar("load: failed", { dir, error: err instanceof Error ? err.message : String(err) })
+      })
+    }
   })
 
   const sidebarProjects = createMemo(() => {
@@ -2356,10 +2380,24 @@ export default function Layout(props: ParentProps) {
     const homedir = createMemo(() => globalSync.data.path.home)
 
     const qaSessions = createMemo(() => {
-      const dir = qaDefaultDir()
-      if (!dir) return [] as Session[]
-      const [store] = globalSync.child(dir, { bootstrap: false })
-      return sortedRootSessionsForDirectory(store, dir, sortNow())
+      const dirs = qaSidebarDirs()
+      if (dirs.length === 0) return [] as Session[]
+      const now = sortNow()
+      const seen = new Set<string>()
+      const merged: Session[] = []
+      for (const dir of dirs) {
+        const [store] = globalSync.child(dir, { bootstrap: false })
+        for (const session of sortedRootSessionsForDirectory(store, dir, now)) {
+          if (seen.has(session.id)) continue
+          seen.add(session.id)
+          merged.push(session)
+        }
+      }
+      return merged.sort((a, b) => {
+        const aUpdated = a.time.updated ?? a.time.created
+        const bUpdated = b.time.updated ?? b.time.created
+        return bUpdated - aUpdated
+      })
     })
 
     createEffect(

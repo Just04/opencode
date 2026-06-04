@@ -1,7 +1,8 @@
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { Dialog } from "@opencode-ai/ui/dialog"
-import { For, Show } from "solid-js"
+import { createMemo, For, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
+import { useLayout } from "@/context/layout"
 import type { ConversationPreset } from "@/config/conversation-presets"
 import { useConversationPresets } from "@/hooks/use-conversation-presets"
 import { ConversationPresetIcon } from "@/components/conversation-preset-icon"
@@ -53,12 +54,12 @@ function OptionCard(props: { preset: ConversationPreset; onSelect: () => void })
 export function DialogSelectConversation(props: DialogSelectConversationProps) {
   const dialog = useDialog()
   const language = useLanguage()
+  const layout = useLayout()
   const presets = useConversationPresets()
-  const filtered = () => {
-    const mode = props.mode
-    if (!mode) return presets()
-    return presets().filter((p) => p.mode === mode)
-  }
+  const filtered = createMemo(() => {
+    const mode = props.mode ?? layout.mode()
+    return presets().filter((preset) => preset.mode === mode)
+  })
 
   return (
     <Dialog

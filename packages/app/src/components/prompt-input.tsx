@@ -57,6 +57,8 @@ import { ImagePreview } from "@opencode-ai/ui/image-preview"
 import { useQueries } from "@tanstack/solid-query"
 import { useQueryOptions } from "@/context/global-sync"
 import { pathKey } from "@/utils/path-key"
+import { slashSkillVisible } from "@/config/conversation-presets"
+import { useConversationConfig } from "@/hooks/use-conversation-presets"
 
 interface PromptInputProps {
   class?: string
@@ -110,6 +112,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const files = useFile()
   const prompt = usePrompt()
   const layout = useLayout()
+  const conversationConfig = useConversationConfig()
   const comments = useComments()
   const dialog = useDialog()
   const providers = useProviders()
@@ -623,14 +626,21 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         type: "builtin" as const,
       }))
 
-    const custom = sync.data.command.map((cmd) => ({
-      id: `custom.${cmd.name}`,
-      trigger: cmd.name,
-      title: cmd.name,
-      description: cmd.description,
-      type: "custom" as const,
-      source: cmd.source,
-    }))
+    const mode = layout.mode()
+    const config = conversationConfig()
+    const custom = sync.data.command
+      .filter(
+        (cmd) =>
+          cmd.source !== "skill" || slashSkillVisible(cmd.name, mode, config),
+      )
+      .map((cmd) => ({
+        id: `custom.${cmd.name}`,
+        trigger: cmd.name,
+        title: cmd.name,
+        description: cmd.description,
+        type: "custom" as const,
+        source: cmd.source,
+      }))
 
     return [...custom, ...builtin]
   })

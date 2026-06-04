@@ -39,7 +39,10 @@ import { ConfigReference } from "./reference"
 import { ConfigServer } from "./server"
 import { ConfigSkills } from "./skills"
 import { ConfigVariable } from "./variable"
+import { Info as ConversationConfig } from "./conversation"
 import { Npm } from "@opencode-ai/core/npm"
+
+export * as ConfigConversation from "./conversation"
 
 const log = Log.create({ service: "config" })
 
@@ -293,8 +296,8 @@ export const Info = Schema.Struct({
       }),
     }),
   ),
-  conversation: Schema.optional(Schema.Unknown).annotate({
-    description: "Conversation presets configuration",
+  conversation: Schema.optional(ConversationConfig).annotate({
+    description: "Conversation presets configuration (prefer conversation.json)",
   }),
 }).annotate({ identifier: "Config" })
 

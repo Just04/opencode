@@ -20,6 +20,9 @@ import PROMPT_PLAN from "../session/prompt/plan.txt"
 import BUILD_SWITCH from "../session/prompt/build-switch.txt"
 import MAX_STEPS from "../session/prompt/max-steps.txt"
 import { ToolRegistry } from "@/tool/registry"
+import { SkillTool } from "@/tool/skill"
+import { Skill } from "@/skill"
+import { SessionSkillsContext } from "@/session/session-skills-context"
 import { ToolJsonSchema } from "@/tool/json-schema"
 import { MCP } from "../mcp"
 import { LSP } from "@/lsp/lsp"
@@ -584,6 +587,19 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                   { tool: item.id, sessionID: ctx.sessionID, callID: ctx.callID },
                   { args },
                 )
+                if (item.id === SkillTool.id && typeof args === "object" && args && "name" in args) {
+                  const name = (args as { name: string }).name
+                  const info = yield* Skill.Service.use((svc) => svc.get(name))
+                  if (
+                    yield* SessionSkillsContext.denyCall({
+                      sessionID: ctx.sessionID,
+                      name,
+                      skill: info,
+                    }).pipe(Effect.orDie)
+                  ) {
+                    throw new Error(`Skill "${name}" is not available for this conversation preset`)
+                  }
+                }
                 const result = yield* item.execute(args, ctx)
                 const output = {
                   ...result,
@@ -1810,7 +1826,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
 
             const [skills, env, instructions, modelMsgs] = yield* Effect.all([
-              sys.skills(agent),
+              sys.skills(agent, sessionID),
               sys.environment(model),
               instruction.system().pipe(Effect.orDie),
               MessageV2.toModelMessagesEffect(msgs, model),
@@ -2017,6 +2033,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
 
 export const defaultLayer = Layer.suspend(() =>
   layer.pipe(
+    Layer.provide(Skill.defaultLayer),
     Layer.provide(SessionRunState.defaultLayer),
     Layer.provide(SessionStatus.defaultLayer),
     Layer.provide(SessionCompaction.defaultLayer),
