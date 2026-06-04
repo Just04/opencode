@@ -11,7 +11,7 @@ export default function PrivacyPolicy() {
   const language = useLanguage()
   return (
     <main data-page="legal">
-      <Title>OpenCode | Privacy Policy</Title>
+      <Title>TECHART | Privacy Policy</Title>
       <LocaleLinks path="/legal/privacy-policy" />
       <Meta name="description" content="OpenCode privacy policy" />
       <div data-component="container">

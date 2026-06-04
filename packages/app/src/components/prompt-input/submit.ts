@@ -15,7 +15,8 @@ import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { Identifier } from "@/utils/id"
 import { Worktree as WorktreeState } from "@/utils/worktree"
-import { getConversationSessionMeta } from "@/utils/conversation-session-meta"
+import { getConversationPresetID } from "@/utils/conversation-session-meta"
+import { PendingConversationPreset } from "@/utils/pending-conversation-preset"
 import { buildRequestParts } from "./build-request-parts"
 import { setCursorPosition } from "./editor-dom"
 import { formatServerError } from "@/utils/server-errors"
@@ -157,6 +158,7 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
       return false
     }
 
+    console.log("[sendMessage] calling promptAsync with presetID:", input.draft.presetID)
     await input.client.session.promptAsync({
       sessionID: input.draft.sessionID,
       agent: input.draft.agent,
@@ -369,8 +371,9 @@ export function createPromptSubmit(input: PromptSubmitInput) {
 
     let session = input.info()
     if (!session && isNewSession) {
+      const pendingId = PendingConversationPreset.peek()?.id
       const created = await client.session
-        .create()
+        .create(pendingId ? { conversationPresetID: pendingId } : undefined)
         .then((x) => x.data ?? undefined)
         .catch((err) => {
           showToast({
@@ -411,8 +414,9 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       model,
       variant,
       conversationMode: layout.mode(),
-      presetID: getConversationSessionMeta(session.id)?.presetID,
+      presetID: getConversationPresetID(session),
     }
+    console.log("[submit] draft built:", { sessionID: draft.sessionID, presetID: draft.presetID, conversationMode: draft.conversationMode })
 
     const clearInput = () => {
       prompt.reset()
@@ -476,7 +480,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
             model: `${model.providerID}/${model.modelID}`,
             variant,
             conversationMode: layout.mode(),
-            presetID: getConversationSessionMeta(session.id)?.presetID,
+            presetID: getConversationPresetID(session),
             parts: images.map((attachment) => ({
               id: Identifier.ascending("part"),
               type: "file" as const,

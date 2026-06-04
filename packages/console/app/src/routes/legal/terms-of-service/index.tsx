@@ -11,7 +11,7 @@ export default function TermsOfService() {
   const language = useLanguage()
   return (
     <main data-page="legal">
-      <Title>OpenCode | Terms of Service</Title>
+      <Title>TECHART | Terms of Service</Title>
       <LocaleLinks path="/legal/terms-of-service" />
       <Meta name="description" content="OpenCode terms of service" />
       <div data-component="container">

@@ -18,8 +18,8 @@ const promptPresetIDBySession = new Map<SessionID, string>()
 
 const sessionPresetID = (session: {
   directory: string
-  conversation?: { presetID?: string; mode?: string }
-}) => session.conversation?.presetID
+  conversationPresetID?: string
+}) => session.conversationPresetID
 
 export function setPromptMode(sessionID: SessionID, mode: "project" | "qa") {
   promptModeBySession.set(sessionID, mode)
@@ -37,24 +37,21 @@ export function clearPromptPresetID(sessionID: SessionID) {
   promptPresetIDBySession.delete(sessionID)
 }
 
-function resolvePresetID(sessionID: SessionID, session: { directory: string; conversation?: { presetID?: string; mode?: string } }, conversation: ConversationInfo, mode?: "project" | "qa") {
+function resolvePresetID(sessionID: SessionID, session: { directory: string; conversationPresetID?: string }, conversation: ConversationInfo, mode?: "project" | "qa") {
   const fromPrompt = promptPresetIDBySession.get(sessionID)
   slog.info("resolvePresetID: step1 promptModeBySession", { sessionID, fromPrompt })
   if (fromPrompt) return fromPrompt
 
   const fromSession = sessionPresetID(session)
-  slog.info("resolvePresetID: step2 session.conversation.presetID", { sessionPresetID: fromSession, sessionConversation: session.conversation })
+  slog.info("resolvePresetID: step2 session.conversationPresetID", { sessionPresetID: fromSession, sessionDir: session.directory })
   if (fromSession) return fromSession
 
   const fromDirectory = SessionSkills.presetIDForDirectory(conversation, session.directory, Global.Path.home)
   slog.info("resolvePresetID: step3 directory match", { sessionDir: session.directory, home: Global.Path.home, presetDirections: conversation.presets?.map((p) => ({ id: p.id, dir: p.directory })), matchedPresetID: fromDirectory })
   if (fromDirectory) return fromDirectory
 
-  if (mode && conversation.presets?.length) {
-    const match = conversation.presets.find((preset) => (preset.mode ?? "project") === mode)
-    slog.info("resolvePresetID: step4 mode fallback", { mode, matchedPresetID: match?.id, allPresetModes: conversation.presets.map((p) => ({ id: p.id, mode: p.mode })) })
-    if (match) return match.id
-  }
+  // step 4: mode 回退 — 有多个同 mode preset 时无法确定用哪个，不猜
+  slog.info("resolvePresetID: step4 mode fallback skip", { mode, allPresetModes: conversation.presets?.map((p) => ({ id: p.id, mode: p.mode })) })
 
   slog.info("resolvePresetID: all steps failed, returning undefined")
   return undefined
@@ -62,17 +59,14 @@ function resolvePresetID(sessionID: SessionID, session: { directory: string; con
 
 function resolveMode(
   sessionID: SessionID,
-  session: { directory: string; conversation?: { presetID?: string; mode?: string } },
+  session: { directory: string; conversationPresetID?: string },
   conversation: ConversationInfo,
 ) {
   const fromPrompt = promptModeBySession.get(sessionID)
   slog.info("resolveMode: step1 promptModeBySession", { sessionID, fromPrompt })
   if (fromPrompt) return fromPrompt
 
-  const fromSession = session.conversation?.mode
-  slog.info("resolveMode: step2 session.conversation.mode", { sessionMode: fromSession, sessionConversation: session.conversation })
-  if (fromSession === "qa" || fromSession === "project") return fromSession
-
+  // session 本身没有 mode 字段，从 presetID 推断
   const sessionPreset = sessionPresetID(session)
   const inferred = SessionSkills.inferConversationMode(conversation, {
     directory: session.directory,
@@ -146,29 +140,19 @@ export const filterForSession = Effect.fn("SessionSkillsContext.filterForSession
   }
 
   // 6. 解析当前激活的是哪个 preset
-  //    多层次回退（prompt → session.conversation → 目录匹配 → mode 回退）
+  //    多层次回退（prompt → session.conversationPresetID → 目录匹配 → mode 回退）
   const ctx = yield* InstanceState.context
   yield* elog.info("filterForSession: about to resolve presetID", { mode, sessionID, worktree: ctx.worktree })
 
   const presetID = resolvePresetID(sessionID, session, conversation, mode)
   yield* elog.info("filterForSession: presetID resolved", { presetID })
 
-  // 7. 从 preset 中获取 skills 白名单
+  // 7. 用 presetID 找到对应的 preset，取其 skills 做 allowlist
+  //    解析不到 presetID 时 allowed=undefined, filterSkills 会放行全部技能
   const allowed = SessionSkills.allowedForPreset(conversation, presetID)
   yield* elog.info("filterForSession: allowed computed", { allowed, hasSessionSkills: !!conversation?.session_skills })
 
-  // 8. 关键修复：session_skills=true 但所有回退都解析不到 preset 时
-  //    不退回"显示全部"，改成"只保留内置技能"
-  if (!allowed && conversation.session_skills) {
-    const builtinOnly = filtered.filter((s) => s.name === BUILTIN_SKILL)
-    yield* elog.info("filterForSession: session_skills=true but no preset matched, returning builtin-only", {
-      inputSkills: filtered.map((s) => s.name),
-      outputSkills: builtinOnly.map((s) => s.name),
-    })
-    return builtinOnly
-  }
-
-  // 9. 最终用白名单过滤：只保留白名单内的全局技能 + 内置技能 + 项目本地技能
+  // 8. 最终用白名单过滤：保留白名单内的全局技能 + 内置技能 + 项目本地技能
   const result = SessionSkills.filterSkills({ skills: filtered, allowed, worktree: ctx.worktree })
   yield* elog.info("filterForSession final result", {
     outputSkills: result.map((s) => s.name),

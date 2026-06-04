@@ -1,4 +1,5 @@
 import type { Config } from "@opencode-ai/sdk/v2/client"
+import { PendingConversationPreset } from "@/utils/pending-conversation-preset"
 import { resolveConversationIcon } from "@/config/conversation-preset-icons"
 import {
   conversationPresetsWithDefaults,
@@ -120,6 +121,23 @@ export function setConversationSessionMeta(sessionId: string, meta: Conversation
 
 export function getConversationSessionMeta(sessionId: string) {
   return store.bySession[sessionId]
+}
+
+export function getConversationPresetID(session: { id: string } & Record<string, unknown>) {
+  const meta = getConversationSessionMeta(session.id)
+  console.log("[getConversationPresetID] step1 localStorage meta:", meta, "sessionId:", session.id)
+  if (meta?.presetID) {
+    console.log("[getConversationPresetID] found from localStorage:", meta.presetID)
+    return meta.presetID
+  }
+  const direct = (session as { conversationPresetID?: string }).conversationPresetID
+  console.log("[getConversationPresetID] step2 session.conversationPresetID:", direct)
+  if (direct) return direct
+  const pending = PendingConversationPreset.peek()
+  console.log("[getConversationPresetID] step3 PendingConversationPreset:", pending?.id)
+  if (pending) return pending.id
+  console.log("[getConversationPresetID] all steps failed, returning undefined")
+  return undefined
 }
 
 const TITLE_HINTS: Record<string, RegExp[]> = {

@@ -94,7 +94,7 @@ export default function Enterprise() {
                         />
                       </svg>
                     </div>
-                    Thanks to OpenCode, we found a way to create software to track all our assets â€” even the imaginary
+                    Thanks to TECHART, we found a way to create software to track all our assets â€?even the imaginary
                     ones.
                     <div data-component="testimonial-logo">
                       <svg width="80" height="79" viewBox="0 0 80 79" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -282,3 +282,4 @@ export default function Enterprise() {
     </main>
   )
 }
+

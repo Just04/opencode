@@ -174,7 +174,7 @@ export function initI18n(): Promise<Locale> {
   if (cached) return cached
 
   const promise = (async () => {
-    const raw = await window.api.storeGet("opencode.global.dat", "language").catch(() => null)
+    const raw = await window.api.storeGet("TECHART.global.dat", "language").catch(() => null)
     const value = parseStored(raw)
     const next = pickLocale(value) ?? state.locale
 
@@ -186,3 +186,4 @@ export function initI18n(): Promise<Locale> {
   state.init = promise
   return promise
 }
+

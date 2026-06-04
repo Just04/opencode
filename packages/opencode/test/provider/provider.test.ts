@@ -1916,7 +1916,7 @@ test("hosted nvidia provider adds billing origin header", async () => {
       expect(providers[ProviderID.make("nvidia")].options.headers).toEqual({
         "HTTP-Referer": "https://opencode.ai/",
         "X-Title": "opencode",
-        "X-BILLING-INVOKE-ORIGIN": "OpenCode",
+        "X-BILLING-INVOKE-ORIGIN": "TECHART",
       })
     },
   })
@@ -1948,7 +1948,7 @@ test("custom nvidia baseURL adds billing origin header", async () => {
       expect(providers[ProviderID.make("nvidia")].options.headers).toEqual({
         "HTTP-Referer": "https://opencode.ai/",
         "X-Title": "opencode",
-        "X-BILLING-INVOKE-ORIGIN": "OpenCode",
+        "X-BILLING-INVOKE-ORIGIN": "TECHART",
       })
     },
   })
@@ -2813,3 +2813,4 @@ test("opencode loader keeps paid models when auth exists", async () => {
     }
   }
 })
+

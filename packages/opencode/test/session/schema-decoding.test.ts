@@ -16,7 +16,7 @@ import { WorkspaceID } from "../../src/control-plane/schema"
 //   1. The Effect decoder (`Schema.decodeUnknownSync`) accepts valid input.
 //   2. Clearly-invalid input is rejected.
 
-// Representative valid IDs â€” the branded schemas require the right prefix
+// Representative valid IDs â€?the branded schemas require the right prefix
 // (see src/id/id.ts).
 const sessionID = Schema.decodeUnknownSync(SessionID)("ses_01J5Y5H0AH4Q4NXJ6P4C3P5V2K")
 const sessionIDChild = Schema.decodeUnknownSync(SessionID)("ses_01J5Y5H0AH4Q4NXJ6P4C3P5V2L")
@@ -236,7 +236,7 @@ describe("SessionStatus.Info", () => {
         reason: "free_tier_limit",
         provider: "opencode",
         title: "Free limit reached",
-        message: "Subscribe to OpenCode Go.",
+        message: "Subscribe to TECHART Go.",
         label: "subscribe",
         link: "https://opencode.ai/go",
       },
@@ -309,3 +309,4 @@ describe("SessionPrompt input schemas", () => {
     expect(decode(input)).toEqual(expected)
   })
 })
+

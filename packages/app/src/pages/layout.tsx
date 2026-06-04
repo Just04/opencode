@@ -108,8 +108,8 @@ import {
 
 import {
   conversationMetaFromPreset,
-  persistConversationSessionMeta,
   sessionWithConversation,
+  setConversationSessionMeta,
 } from "@/utils/conversation-session-meta"
 import { PendingConversationPreset } from "@/utils/pending-conversation-preset"
 
@@ -1469,6 +1469,24 @@ export default function Layout(props: ParentProps) {
       return
     }
 
+    const current = server.current
+    if (current?.http) {
+      showNewConversationDialog({
+        dialog,
+        sdk: globalSDK,
+        server: current.http,
+        language,
+        home: globalSync.data.path.home,
+        targetDirectory: root,
+        mode: layout.mode(),
+        onOpen: (targetDir, _preset) => {
+          const slug = base64Encode(targetDir)
+          navigateWithSidebarReset(`/${slug}/session`)
+        },
+      })
+      return
+    }
+
     navigateWithSidebarReset(`/${base64Encode(root)}/session`)
   }
 
@@ -1619,6 +1637,7 @@ export default function Layout(props: ParentProps) {
       targetDirectory: activeDirectory,
       mode: layout.mode(),
       onOpen: async (directory, preset) => {
+        console.log("[layout] onOpen called", { directory, presetId: preset.id, presetName: preset.name })
         const target = activeDirectory || directory
         const conversation = conversationMetaFromPreset(preset)
         layout.projects.open(target)
@@ -1626,23 +1645,18 @@ export default function Layout(props: ParentProps) {
         globalSync.child(target)
         const slug = base64Encode(target)
         const client = globalSDK.createClient({ directory: target, throwOnError: true })
-        const created = await client.session
-          .create({})
-          .then((x) => x.data)
-          .catch((err) => {
-            showToast({
-              title: language.t("prompt.toast.sessionCreateFailed.title"),
-              description: errorMessage(err, language.t("common.requestFailed")),
-            })
-            return undefined
-          })
+        console.log("[layout] about to create session with conversationPresetID:", preset.id)
+        const resp = await client.session.create({ conversationPresetID: preset.id })
+        console.log("[layout] create session response:", resp)
+        const created = resp.data
         if (!created?.id) {
+          console.log("[layout] created session has no id, navigating to project", { created })
           void navigateToProject(target)
           return
         }
-        const saved =
-          (await persistConversationSessionMeta({ client, sessionID: created.id, meta: conversation })) ?? created
-        const row = sessionWithConversation(saved, conversation)
+        console.log("[layout] session created successfully, now saving meta:", { sessionId: created.id, conversation, created })
+        setConversationSessionMeta(created.id, conversation)
+        const row = sessionWithConversation(created, conversation)
         const [, setStore] = globalSync.child(target)
         setStore("session", (list: Session[]) => {
           const result = Binary.search(list, row.id, (item) => item.id)

@@ -519,7 +519,7 @@ export class Agent implements ACPAgent {
         "terminal-auth": {
           command: "opencode",
           args: ["auth", "login"],
-          label: "OpenCode Login",
+          label: "TECHART Login",
         },
       }
     }
@@ -545,7 +545,7 @@ export class Agent implements ACPAgent {
       },
       authMethods: [authMethod],
       agentInfo: {
-        name: "OpenCode",
+        name: "TECHART",
         version: InstallationVersion,
       },
     }

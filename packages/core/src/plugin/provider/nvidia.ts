@@ -8,10 +8,11 @@ export const NvidiaPlugin = PluginV2.define({
     return {
       "provider.update": Effect.fn(function* (evt) {
         if (evt.provider.id !== ProviderV2.ID.make("nvidia")) return
-        evt.provider.options.headers["HTTP-Referer"] = "https://opencode.ai/"
-        evt.provider.options.headers["X-Title"] = "opencode"
-        evt.provider.options.headers["X-BILLING-INVOKE-ORIGIN"] ??= "OpenCode"
+        evt.provider.options.headers["HTTP-Referer"] = "https://TECHART.ai/"
+        evt.provider.options.headers["X-Title"] = "TECHART"
+        evt.provider.options.headers["X-BILLING-INVOKE-ORIGIN"] ??= "TECHART"
       }),
     }
   }),
 })
+

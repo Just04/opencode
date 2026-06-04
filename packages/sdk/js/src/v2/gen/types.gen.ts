@@ -776,6 +776,7 @@ export type Session = {
     snapshot?: string
     diff?: string
   }
+  conversationPresetID?: string
 }
 
 export type Prompt = {
@@ -5532,6 +5533,7 @@ export type SessionCreateData = {
     }
     permission?: PermissionRuleset
     workspaceID?: string
+    conversationPresetID?: string
   }
   path?: never
   query?: {

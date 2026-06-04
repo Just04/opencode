@@ -101,6 +101,7 @@ export function fromRow(row: SessionRow): Info {
     share,
     revert,
     permission: row.permission ?? undefined,
+    conversationPresetID: row.conversation_preset_id ?? undefined,
     time: {
       created: row.time_created,
       updated: row.time_updated,
@@ -223,6 +224,7 @@ export const Info = Schema.Struct({
   time: Time,
   permission: optionalOmitUndefined(Permission.Ruleset),
   revert: optionalOmitUndefined(Revert),
+  conversationPresetID: optionalOmitUndefined(Schema.String),
 }).annotate({ identifier: "Session" })
 export type Info = Types.DeepMutable<Schema.Schema.Type<typeof Info>>
 
@@ -247,6 +249,7 @@ export const CreateInput = Schema.optional(
     model: Schema.optional(Model),
     permission: Schema.optional(Permission.Ruleset),
     workspaceID: Schema.optional(WorkspaceID),
+    conversationPresetID: Schema.optional(Schema.String),
   }),
 )
 export type CreateInput = Types.DeepMutable<Schema.Schema.Type<typeof CreateInput>>
@@ -322,6 +325,7 @@ const UpdatedInfo = Schema.Struct({
   time: Schema.optional(UpdatedTime),
   permission: Schema.optional(Schema.NullOr(Permission.Ruleset)),
   revert: Schema.optional(Schema.NullOr(Revert)),
+  conversationPresetID: Schema.optional(Schema.NullOr(Schema.String)),
 })
 
 const UpdatedEventSchema = Schema.Struct({
@@ -458,6 +462,7 @@ export interface Interface {
     model?: Schema.Schema.Type<typeof Model>
     permission?: Permission.Ruleset
     workspaceID?: WorkspaceID
+    conversationPresetID?: string
   }) => Effect.Effect<Info>
   readonly fork: (input: { sessionID: SessionID; messageID?: MessageID }) => Effect.Effect<Info, NotFound>
   readonly touch: (sessionID: SessionID) => Effect.Effect<void>
@@ -465,6 +470,7 @@ export interface Interface {
   readonly setTitle: (input: { sessionID: SessionID; title: string }) => Effect.Effect<void>
   readonly setArchived: (input: { sessionID: SessionID; time?: number }) => Effect.Effect<void>
   readonly setPermission: (input: { sessionID: SessionID; permission: Permission.Ruleset }) => Effect.Effect<void>
+  readonly setConversationPresetID: (input: { sessionID: SessionID; presetID: string }) => Effect.Effect<void>
   readonly setRevert: (input: {
     sessionID: SessionID
     revert: Info["revert"]
@@ -529,6 +535,7 @@ export const layer: Layer.Layer<
       directory: string
       path?: string
       permission?: Permission.Ruleset
+      conversationPresetID?: string
     }) {
       const ctx = yield* InstanceState.context
       const result: Info = {
@@ -544,6 +551,7 @@ export const layer: Layer.Layer<
         agent: input.agent,
         model: input.model,
         permission: input.permission,
+        conversationPresetID: input.conversationPresetID,
         cost: 0,
         tokens: EmptyTokens,
         time: {
@@ -660,6 +668,7 @@ export const layer: Layer.Layer<
       model?: Schema.Schema.Type<typeof Model>
       permission?: Permission.Ruleset
       workspaceID?: WorkspaceID
+      conversationPresetID?: string
     }) {
       const ctx = yield* InstanceState.context
       const workspace = yield* InstanceState.workspaceID
@@ -672,6 +681,7 @@ export const layer: Layer.Layer<
         model: input?.model,
         permission: input?.permission,
         workspaceID: input?.workspaceID ?? workspace,
+        conversationPresetID: input?.conversationPresetID,
       })
     })
 
@@ -729,6 +739,13 @@ export const layer: Layer.Layer<
 
     const setArchived = Effect.fn("Session.setArchived")(function* (input: { sessionID: SessionID; time?: number }) {
       yield* patch(input.sessionID, { time: { archived: input.time } })
+    })
+
+    const setConversationPresetID = Effect.fn("Session.setConversationPresetID")(function* (input: {
+      sessionID: SessionID
+      presetID: string
+    }) {
+      yield* patch(input.sessionID, { conversationPresetID: input.presetID, time: { updated: Date.now() } })
     })
 
     const setPermission = Effect.fn("Session.setPermission")(function* (input: {
@@ -843,6 +860,7 @@ export const layer: Layer.Layer<
       get,
       setTitle,
       setArchived,
+      setConversationPresetID,
       setPermission,
       setRevert,
       clearRevert,

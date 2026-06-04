@@ -46,7 +46,8 @@ function rewrite(request: Request, values: { directory?: string; workspace?: str
 
 export function createOpencodeClient(config?: Config & { directory?: string; experimental_workspaceID?: string }) {
   if (!config?.fetch) {
-    const customFetch: any = (req: any) => {
+    const customFetch: any = async (req: any) => {
+      console.log("[fetch] method:", req.method, "url:", req.url, "body:", await req.clone().text())
       // @ts-ignore
       req.timeout = false
       return fetch(req)

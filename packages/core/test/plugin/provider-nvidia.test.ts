@@ -34,7 +34,7 @@ describe("NvidiaPlugin", () => {
         Existing: "value",
         "HTTP-Referer": "https://opencode.ai/",
         "X-Title": "opencode",
-        "X-BILLING-INVOKE-ORIGIN": "OpenCode",
+        "X-BILLING-INVOKE-ORIGIN": "TECHART",
       })
       expect(ignored.provider.options.headers).toEqual({})
     }),
@@ -59,7 +59,7 @@ describe("NvidiaPlugin", () => {
       expect(result.provider.options.headers).toEqual({
         "HTTP-Referer": "https://opencode.ai/",
         "X-Title": "opencode",
-        "X-BILLING-INVOKE-ORIGIN": "OpenCode",
+        "X-BILLING-INVOKE-ORIGIN": "TECHART",
       })
     }),
   )
@@ -91,3 +91,4 @@ describe("NvidiaPlugin", () => {
     }),
   )
 })
+

@@ -43,6 +43,10 @@ export const MessagesQuery = Schema.Struct({
   before: Schema.optional(Schema.String),
 })
 export const StatusMap = Schema.Record(Schema.String, SessionStatus.Info)
+const ConversationUpdate = Schema.Struct({
+  presetID: Schema.optional(Schema.String),
+})
+
 export const UpdatePayload = Schema.Struct({
   title: Schema.optional(Schema.String),
   permission: Schema.optional(Permission.Ruleset),
@@ -51,6 +55,7 @@ export const UpdatePayload = Schema.Struct({
       archived: Schema.optional(Session.ArchivedTimestamp),
     }),
   ),
+  conversation: Schema.optional(ConversationUpdate),
 })
 export const ForkPayload = Schema.Struct(Struct.omit(Session.ForkInput.fields, ["sessionID"]))
 export const InitPayload = Schema.Struct({
